@@ -19,18 +19,21 @@ body.glove {
 }
 body.glove button {
   font-size: 1.4em;
-  padding: 18px 28px;
+  padding: 18px 30px;
 }
 h1 { margin-bottom: 10px; }
+
 select, input {
   font-size: 1em;
-  padding: 5px;
+  padding: 6px;
   margin: 4px;
 }
+
 #exercise {
   font-size: 1.6em;
   margin: 20px 0;
 }
+
 #timer {
   font-size: 4em;
   margin: 20px 0;
@@ -38,14 +41,20 @@ select, input {
 body.glove #timer {
   font-size: 6em;
 }
+
 button {
   font-size: 1.1em;
-  padding: 10px 20px;
+  padding: 12px 22px;
   margin: 6px;
 }
+
 .exercise-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
   margin: 6px 0;
 }
+
 .exercise-row input {
   width: 28%;
 }
@@ -66,7 +75,16 @@ button {
   <option>Zondag</option>
 </select>
 
+<br>
+
 <button onclick="toggleGlove()">🧤 Handschoenmodus</button>
+
+<h3>Instellingen</h3>
+
+<div>
+  Rondes:
+  <input id="rondes" type="number" value="1" min="1" style="width:80px;">
+</div>
 
 <h3>Oefeningen</h3>
 <div id="exerciseList"></div>
@@ -81,12 +99,14 @@ button {
 <script>
 let schema = [];
 let index = 0;
+let ronde = 1;
 let fase = "werk";
 let resterend = 0;
 let interval = null;
 
+/* ---------- GELUID & TRILLING ---------- */
 function beep(freq = 800, dur = 0.15) {
-  const ctx = new AudioContext();
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const osc = ctx.createOscillator();
   osc.frequency.value = freq;
   osc.connect(ctx.destination);
@@ -98,6 +118,12 @@ function vibrate(ms = 200) {
   if (navigator.vibrate) navigator.vibrate(ms);
 }
 
+/* ---------- UI ---------- */
+function toggleGlove() {
+  document.body.classList.toggle("glove");
+}
+
+/* ---------- OEFENINGEN ---------- */
 function renderExercises(data) {
   exerciseList.innerHTML = "";
   (data || [
@@ -116,36 +142,57 @@ function renderExercises(data) {
   });
 }
 
+function buildSchema() {
+  schema = [];
+  document.querySelectorAll(".exercise-row").forEach(r => {
+    const i = r.querySelectorAll("input");
+    if (i[0].value.trim()) {
+      schema.push({
+        naam: i[0].value,
+        werk: +i[1].value,
+        rust: +i[2].value
+      });
+    }
+  });
+}
+
+/* ---------- OPSLAG PER DAG ---------- */
 function saveDay() {
   const d = day.value;
   const oefeningen = [...document.querySelectorAll(".exercise-row")].map(r => {
     const i = r.querySelectorAll("input");
     return { naam:i[0].value, werk:+i[1].value, rust:+i[2].value };
   });
-  localStorage.setItem(d, JSON.stringify(oefeningen));
+  localStorage.setItem(d, JSON.stringify({
+    rondes: rondes.value,
+    oefeningen
+  }));
 }
 
 function loadDay() {
   const d = day.value;
   const data = JSON.parse(localStorage.getItem(d));
-  renderExercises(data);
+  if (data) {
+    rondes.value = data.rondes;
+    renderExercises(data.oefeningen);
+  } else {
+    rondes.value = 1;
+    renderExercises();
+  }
 }
 
-function buildSchema() {
-  schema = [];
-  document.querySelectorAll(".exercise-row").forEach(r => {
-    const i = r.querySelectorAll("input");
-    if (i[0].value.trim())
-      schema.push({ naam:i[0].value, werk:+i[1].value, rust:+i[2].value });
-  });
-}
-
+/* ---------- TIMER ---------- */
 function startTimer() {
   if (interval) return;
   saveDay();
   buildSchema();
-  if (!schema.length) return alert("Geen oefeningen");
-  startWerk();
+  if (!schema.length) return alert("Geen oefeningen ingevuld");
+
+  if (resterend === 0) {
+    index = 0;
+    ronde = 1;
+    startWerk();
+  }
   interval = setInterval(tik, 1000);
 }
 
@@ -157,6 +204,7 @@ function pauseTimer() {
 function resetTimer() {
   pauseTimer();
   index = 0;
+  ronde = 1;
   fase = "werk";
   resterend = 0;
   exercise.textContent = "Klaar om te starten";
@@ -166,14 +214,16 @@ function resetTimer() {
 function startWerk() {
   fase = "werk";
   resterend = schema[index].werk;
-  exercise.textContent = schema[index].naam + " – WERK";
+  exercise.textContent =
+    `${schema[index].naam} – WERK (ronde ${ronde}/${rondes.value})`;
   beep(700); vibrate();
 }
 
 function startRust() {
   fase = "rust";
   resterend = schema[index].rust;
-  exercise.textContent = schema[index].naam + " – RUST";
+  exercise.textContent =
+    `${schema[index].naam} – RUST`;
   beep(500); vibrate(100);
 }
 
@@ -191,9 +241,15 @@ function tik() {
     } else {
       index++;
       if (index >= schema.length) {
-        resetTimer();
-        alert("Training klaar!");
-        beep(300, 0.4); vibrate(400);
+        index = 0;
+        ronde++;
+        if (ronde > rondes.value) {
+          resetTimer();
+          alert("Training klaar!");
+          beep(300, 0.4); vibrate(400);
+        } else {
+          startWerk();
+        }
       } else {
         startWerk();
       }
@@ -205,10 +261,6 @@ function updateTimer() {
   const m = Math.floor(resterend / 60).toString().padStart(2,"0");
   const s = (resterend % 60).toString().padStart(2,"0");
   timer.textContent = `${m}:${s}`;
-}
-
-function toggleGlove() {
-  document.body.classList.toggle("glove");
 }
 
 loadDay();
