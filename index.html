@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -9,34 +8,54 @@
 <link rel="manifest" href="manifest.json">
 
 <style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #f7f7f7;
-    padding: 20px;
-    text-align: center;
-  }
-  h1 {
-    margin-bottom: 10px;
-  }
-  #exercise {
-    font-size: 1.4em;
-    margin: 20px 0;
-  }
-  #timer {
-    font-size: 3em;
-    margin: 20px 0;
-  }
-  button {
-    font-size: 1.1em;
-    padding: 10px 20px;
-    margin: 5px;
-  }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f7f7f7;
+  padding: 20px;
+  text-align: center;
+}
+h1 { margin-bottom: 10px; }
+select, input {
+  font-size: 1em;
+  padding: 5px;
+  margin: 5px;
+}
+#exercise {
+  font-size: 1.4em;
+  margin: 20px 0;
+}
+#timer {
+  font-size: 3em;
+  margin: 20px 0;
+}
+button {
+  font-size: 1.1em;
+  padding: 10px 20px;
+  margin: 5px;
+}
 </style>
 </head>
 
 <body>
 
 <h1>Trainings Timer</h1>
+
+<select id="day" onchange="loadDay()">
+  <option>Maandag</option>
+  <option>Dinsdag</option>
+  <option>Woensdag</option>
+  <option>Donderdag</option>
+  <option>Vrijdag</option>
+  <option>Zaterdag</option>
+  <option>Zondag</option>
+</select>
+
+<div>
+  Werk (sec): <input id="werk" type="number" value="40">
+  Rust (sec): <input id="rust" type="number" value="20"><br>
+  Oefeningen: <input id="oef" type="number" value="3">
+  Rondes: <input id="rondes" type="number" value="1">
+</div>
 
 <div id="exercise">Klaar om te starten</div>
 <div id="timer">00:00</div>
@@ -46,24 +65,59 @@
 <button onclick="resetTimer()">Reset</button>
 
 <script>
-const schema = [
-  { naam: "Oefening 1", werk: 40, rust: 20 },
-  { naam: "Oefening 2", werk: 40, rust: 20 },
-  { naam: "Oefening 3", werk: 40, rust: 30 }
-];
-
+let schema = [];
 let index = 0;
-let fase = "werk"; // werk of rust
+let ronde = 1;
+let fase = "werk";
 let resterend = 0;
 let interval = null;
 
+function beep() {
+  const ctx = new AudioContext();
+  const osc = ctx.createOscillator();
+  osc.connect(ctx.destination);
+  osc.frequency.value = 800;
+  osc.start();
+  osc.stop(ctx.currentTime + 0.15);
+}
+
+function vibrate() {
+  if (navigator.vibrate) navigator.vibrate(200);
+}
+
+function saveDay() {
+  const d = day.value;
+  localStorage.setItem(d, JSON.stringify({
+    werk: werk.value,
+    rust: rust.value,
+    oef: oef.value,
+    rondes: rondes.value
+  }));
+}
+
+function loadDay() {
+  const d = day.value;
+  const data = JSON.parse(localStorage.getItem(d));
+  if (data) {
+    werk.value = data.werk;
+    rust.value = data.rust;
+    oef.value = data.oef;
+    rondes.value = data.rondes;
+  }
+}
+
+function buildSchema() {
+  schema = [];
+  for (let i = 1; i <= oef.value; i++) {
+    schema.push({ naam: "Oefening " + i });
+  }
+}
+
 function startTimer() {
   if (interval) return;
-
-  if (resterend === 0) {
-    startWerk();
-  }
-
+  saveDay();
+  if (schema.length === 0) buildSchema();
+  if (resterend === 0) startWerk();
   interval = setInterval(tik, 1000);
 }
 
@@ -75,39 +129,68 @@ function pauseTimer() {
 function resetTimer() {
   pauseTimer();
   index = 0;
+  ronde = 1;
   fase = "werk";
   resterend = 0;
-  document.getElementById("exercise").textContent = "Klaar om te starten";
-  document.getElementById("timer").textContent = "00:00";
+  schema = [];
+  exercise.textContent = "Klaar om te starten";
+  timer.textContent = "00:00";
 }
 
 function startWerk() {
   fase = "werk";
-  resterend = schema[index].werk;
-  document.getElementById("exercise").textContent =
-    schema[index].naam + " – WERK";
+  resterend = Number(werk.value);
+  exercise.textContent =
+    schema[index].naam + " – WERK (ronde " + ronde + ")";
+  beep(); vibrate();
 }
 
 function startRust() {
   fase = "rust";
-  resterend = schema[index].rust;
-  document.getElementById("exercise").textContent =
+  resterend = Number(rust.value);
+  exercise.textContent =
     schema[index].naam + " – RUST";
+  beep(); vibrate();
 }
 
 function tik() {
   resterend--;
   updateTimer();
-
   if (resterend <= 0) {
     if (fase === "werk") {
       startRust();
     } else {
       index++;
       if (index >= schema.length) {
-        resetTimer();
-        alert("Training klaar!");
+        index = 0;
+        ronde++;
+        if (ronde > rondes.value) {
+          resetTimer();
+          alert("Training klaar!");
+          beep(); vibrate();
+        } else {
+          startWerk();
+        }
       } else {
         startWerk();
       }
     }
+  }
+}
+
+function updateTimer() {
+  const m = Math.floor(resterend / 60).toString().padStart(2, "0");
+  const s = (resterend % 60).toString().padStart(2, "0");
+  timer.textContent = `${m}:${s}`;
+}
+
+loadDay();
+</script>
+
+</body>
+</html>
+
+
+
+
+  
