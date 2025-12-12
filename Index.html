@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Weekschema Timer</title>
+
+    <!-- PWA LINKS -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="theme-color" content="#ffffff">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-top: 20px; }
+
+        select, button {
+            padding: 12px;
+            font-size: 18px;
+            margin: 10px;
+        }
+
+        #timerDisplay {
+            font-size: 50px;
+            margin-top: 40px;
+        }
+
+        #exerciseTitle {
+            font-size: 26px;
+            margin-top: 30px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Weekschema Timer</h1>
+
+    <label for="daySelect">Kies dag:</label>
+    <br>
+    <select id="daySelect">
+        <option>Maandag</option>
+        <option>Dinsdag</option>
+        <option>Woensdag</option>
+        <option>Donderdag</option>
+        <option>Vrijdag</option>
+        <option>Zaterdag</option>
+        <option>Zondag</option>
+    </select>
+
+    <br>
+    <button onclick="startTimer()">START</button>
+
+    <div id="exerciseTitle"></div>
+    <div id="timerDisplay"></div>
+
+    <script>
+        const schedule = {
+            "Maandag": [
+                { name: "Scapula retractie", duration: 30 },
+                { name: "Wall slides", duration: 30 },
+                { name: "Prone Y-raise", duration: 30 }
+            ],
+            "Dinsdag": [
+                { name: "Rust / hersteldag", duration: 1 }
+            ],
+            "Woensdag": [
+                { name: "Padel – warming up", duration: 60 },
+                { name: "Schouder activatie", duration: 30 }
+            ],
+            "Donderdag": [
+                { name: "Prone T-raise", duration: 30 },
+                { name: "Isometric ER", duration: 30 }
+            ],
+            "Vrijdag": [
+                { name: "Core stabiliteit", duration: 30 }
+            ],
+            "Zaterdag": [
+                { name: "Kracht / mobiliteit mix", duration: 30 }
+            ],
+            "Zondag": [
+                { name: "Padel – warming up", duration: 60 },
+                { name: "Afsluitende mobiliteit", duration: 30 }
+            ]
+        };
+
+        let currentExercise = 0;
+        let timerRunning = false;
+
+        function startTimer() {
+            if (timerRunning) return;
+
+            const day = document.getElementById("daySelect").value;
+            const exercises = schedule[day];
+
+            currentExercise = 0;
+            timerRunning = true;
+
+            runExercise(exercises);
+        }
+
+        function runExercise(exercises) {
+            if (currentExercise >= exercises.length) {
+                document.getElementById("exerciseTitle").innerText = "Klaar!";
+                document.getElementById("timerDisplay").innerText = "";
+                timerRunning = false;
+                return;
+            }
+
+            const exercise = exercises[currentExercise];
+            let timeLeft = exercise.duration;
+
+            document.getElementById("exerciseTitle").innerText = exercise.name;
+
+            const interval = setInterval(() => {
+                document.getElementById("timerDisplay").innerText = timeLeft + " sec";
+
+                if (timeLeft <= 0) {
+                    clearInterval(interval);
+                    currentExercise++;
+                    runExercise(exercises);
+                }
+
+                timeLeft--;
+            }, 1000);
+        }
+    </script>
+
+</body>
+</html>
