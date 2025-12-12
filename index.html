@@ -2,18 +2,112 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Weekschema Timer</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trainings Timer</title>
 
-  <link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json">
+
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f7f7f7;
+    padding: 20px;
+    text-align: center;
+  }
+  h1 {
+    margin-bottom: 10px;
+  }
+  #exercise {
+    font-size: 1.4em;
+    margin: 20px 0;
+  }
+  #timer {
+    font-size: 3em;
+    margin: 20px 0;
+  }
+  button {
+    font-size: 1.1em;
+    padding: 10px 20px;
+    margin: 5px;
+  }
+</style>
 </head>
-<body>
-  <h1>Weekschema Timer</h1>
-  <p>Als je dit ziet, werkt GitHub Pages correct.</p>
 
-  <button onclick="alert('Timer start!')">
-    Testknop
-  </button>
-</body>
-</html>
+<body>
+
+<h1>Trainings Timer</h1>
+
+<div id="exercise">Klaar om te starten</div>
+<div id="timer">00:00</div>
+
+<button onclick="startTimer()">Start</button>
+<button onclick="pauseTimer()">Pauze</button>
+<button onclick="resetTimer()">Reset</button>
+
+<script>
+const schema = [
+  { naam: "Oefening 1", werk: 40, rust: 20 },
+  { naam: "Oefening 2", werk: 40, rust: 20 },
+  { naam: "Oefening 3", werk: 40, rust: 30 }
+];
+
+let index = 0;
+let fase = "werk"; // werk of rust
+let resterend = 0;
+let interval = null;
+
+function startTimer() {
+  if (interval) return;
+
+  if (resterend === 0) {
+    startWerk();
+  }
+
+  interval = setInterval(tik, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(interval);
+  interval = null;
+}
+
+function resetTimer() {
+  pauseTimer();
+  index = 0;
+  fase = "werk";
+  resterend = 0;
+  document.getElementById("exercise").textContent = "Klaar om te starten";
+  document.getElementById("timer").textContent = "00:00";
+}
+
+function startWerk() {
+  fase = "werk";
+  resterend = schema[index].werk;
+  document.getElementById("exercise").textContent =
+    schema[index].naam + " – WERK";
+}
+
+function startRust() {
+  fase = "rust";
+  resterend = schema[index].rust;
+  document.getElementById("exercise").textContent =
+    schema[index].naam + " – RUST";
+}
+
+function tik() {
+  resterend--;
+  updateTimer();
+
+  if (resterend <= 0) {
+    if (fase === "werk") {
+      startRust();
+    } else {
+      index++;
+      if (index >= schema.length) {
+        resetTimer();
+        alert("Training klaar!");
+      } else {
+        startWerk();
+      }
+    }
