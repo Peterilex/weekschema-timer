@@ -76,14 +76,21 @@ button {
 </select>
 
 <br>
-
 <button onclick="toggleGlove()">🧤 Handschoenmodus</button>
 
 <h3>Instellingen</h3>
-
 <div>
   Rondes:
   <input id="rondes" type="number" value="1" min="1" style="width:80px;">
+</div>
+
+<h3>Presets</h3>
+<div>
+  <input id="presetName" placeholder="Presetnaam">
+  <br>
+  <select id="presetList"></select><br>
+  <button onclick="savePreset()">💾 Bewaar preset</button>
+  <button onclick="loadPreset()">📂 Laad preset</button>
 </div>
 
 <h3>Oefeningen</h3>
@@ -113,7 +120,6 @@ function beep(freq = 800, dur = 0.15) {
   osc.start();
   osc.stop(ctx.currentTime + dur);
 }
-
 function vibrate(ms = 200) {
   if (navigator.vibrate) navigator.vibrate(ms);
 }
@@ -156,29 +162,58 @@ function buildSchema() {
   });
 }
 
-/* ---------- OPSLAG PER DAG ---------- */
+/* ---------- DAG OPSLAG ---------- */
 function saveDay() {
-  const d = day.value;
+  localStorage.setItem("day-" + day.value, JSON.stringify(getCurrentData()));
+}
+function loadDay() {
+  const data = JSON.parse(localStorage.getItem("day-" + day.value));
+  if (data) applyData(data);
+  else {
+    rondes.value = 1;
+    renderExercises();
+  }
+}
+
+/* ---------- PRESETS ---------- */
+function getPresets() {
+  return JSON.parse(localStorage.getItem("presets") || "{}");
+}
+function savePreset() {
+  const name = presetName.value.trim();
+  if (!name) return alert("Geef preset een naam");
+  const presets = getPresets();
+  presets[name] = getCurrentData();
+  localStorage.setItem("presets", JSON.stringify(presets));
+  presetName.value = "";
+  refreshPresetList();
+}
+function loadPreset() {
+  const presets = getPresets();
+  const name = presetList.value;
+  if (presets[name]) applyData(presets[name]);
+}
+function refreshPresetList() {
+  presetList.innerHTML = "";
+  const presets = getPresets();
+  Object.keys(presets).forEach(p => {
+    const o = document.createElement("option");
+    o.textContent = p;
+    presetList.appendChild(o);
+  });
+}
+
+/* ---------- DATA ---------- */
+function getCurrentData() {
   const oefeningen = [...document.querySelectorAll(".exercise-row")].map(r => {
     const i = r.querySelectorAll("input");
     return { naam:i[0].value, werk:+i[1].value, rust:+i[2].value };
   });
-  localStorage.setItem(d, JSON.stringify({
-    rondes: rondes.value,
-    oefeningen
-  }));
+  return { rondes: rondes.value, oefeningen };
 }
-
-function loadDay() {
-  const d = day.value;
-  const data = JSON.parse(localStorage.getItem(d));
-  if (data) {
-    rondes.value = data.rondes;
-    renderExercises(data.oefeningen);
-  } else {
-    rondes.value = 1;
-    renderExercises();
-  }
+function applyData(data) {
+  rondes.value = data.rondes;
+  renderExercises(data.oefeningen);
 }
 
 /* ---------- TIMER ---------- */
@@ -186,27 +221,18 @@ function startTimer() {
   if (interval) return;
   saveDay();
   buildSchema();
-  if (!schema.length) return alert("Geen oefeningen ingevuld");
-
-  if (resterend === 0) {
-    index = 0;
-    ronde = 1;
-    startWerk();
-  }
+  if (!schema.length) return alert("Geen oefeningen");
+  index = 0;
+  ronde = 1;
+  startWerk();
   interval = setInterval(tik, 1000);
 }
-
 function pauseTimer() {
   clearInterval(interval);
   interval = null;
 }
-
 function resetTimer() {
   pauseTimer();
-  index = 0;
-  ronde = 1;
-  fase = "werk";
-  resterend = 0;
   exercise.textContent = "Klaar om te starten";
   timer.textContent = "00:00";
 }
@@ -218,27 +244,19 @@ function startWerk() {
     `${schema[index].naam} – WERK (ronde ${ronde}/${rondes.value})`;
   beep(700); vibrate();
 }
-
 function startRust() {
   fase = "rust";
   resterend = schema[index].rust;
-  exercise.textContent =
-    `${schema[index].naam} – RUST`;
+  exercise.textContent = `${schema[index].naam} – RUST`;
   beep(500); vibrate(100);
 }
-
 function tik() {
   resterend--;
   updateTimer();
-
-  if (resterend <= 5 && resterend > 0) {
-    beep(1200, 0.08);
-  }
-
+  if (resterend <= 5 && resterend > 0) beep(1200,0.08);
   if (resterend <= 0) {
-    if (fase === "werk") {
-      startRust();
-    } else {
+    if (fase === "werk") startRust();
+    else {
       index++;
       if (index >= schema.length) {
         index = 0;
@@ -246,17 +264,12 @@ function tik() {
         if (ronde > rondes.value) {
           resetTimer();
           alert("Training klaar!");
-          beep(300, 0.4); vibrate(400);
-        } else {
-          startWerk();
-        }
-      } else {
-        startWerk();
-      }
+          beep(300,0.4); vibrate(400);
+        } else startWerk();
+      } else startWerk();
     }
   }
 }
-
 function updateTimer() {
   const m = Math.floor(resterend / 60).toString().padStart(2,"0");
   const s = (resterend % 60).toString().padStart(2,"0");
@@ -264,6 +277,7 @@ function updateTimer() {
 }
 
 loadDay();
+refreshPresetList();
 </script>
 
 </body>
